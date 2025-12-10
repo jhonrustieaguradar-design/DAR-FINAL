@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DAR Priority System - Clear Male Voice</title>
+<style>
+  body { 
+    margin:0; 
+    background:#fff; 
+    font-family:Arial,sans-serif; 
+    color:#006400; 
+    overflow:hidden; 
+    cursor: default; 
+  }
+
+  /* Hide blinking caret in all inputs and textareas */
+  input, textarea {
+    caret-color: transparent;
+  }
+
+  .logo-header { text-align:center; padding:20px 0; }
+  .logo-header img { height:100px; display:block; margin:0 auto 10px auto; }
+  .header { font-size:4vw; font-weight:bold; }
+  .contact { font-size:2vw; margin-top:5px; }
+  .container { display:flex; justify-content:space-evenly; padding:20px; width:100%; }
+  .panel { width:40%; text-align:center; padding:20px; border-radius:20px; background:#f0fff0; box-shadow:0 0 20px rgba(0,100,0,0.2) inset; }
+  .service { font-size:2.5vw; font-weight:bold; margin-bottom:10px; }
+  h2 { font-size:2vw; margin:5px 0; }
+  .number { font-size:12vw; font-weight:bold; margin:10px 0; transition: 0.3s; }
+  .number.flash { color: #ff4500; }
+  .btn { padding:15px 25px; margin:5px; border:none; font-size:1.2vw; border-radius:12px; cursor:pointer; }
+  .next { background:#28a745; color:white; } 
+  .back { background:#ffc107; color:black; } 
+  .reset { background:#dc3545; color:white; } 
+  .fullscreen-btn { background:#007bff; color:white; position:fixed; bottom:20px; right:20px; padding:20px 30px; font-size:1.2vw; }
+  .bottom-contact { text-align:center; position:fixed; bottom:10px; width:100%; font-size:1.8vw; }
+  @media(max-width:768px){
+    .number { font-size:20vw; }
+    .service { font-size:6vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="logo-header">
+  <img src="OIP.jpg" alt="DAR Logo">
+  <div class="header">Department of Agrarian Reform</div>
+  <div class="contact">General Contact: 0917-123-4567 | Legal Division: 0966-086-0361</div>
+</div>
+
+<div class="container">
+  <!-- DAR CLEARANCE -->
+  <div class="panel">
+    <div class="service">DAR CLEARANCE</div>
+    <h2>NOW SERVING</h2>
+    <div id="displayA" class="number">01</div>
+    <button class="btn back" onclick="changeNumber('A', -1)">Previous</button>
+    <button class="btn next" onclick="changeNumber('A', 1)">Next</button>
+    <button class="btn reset" onclick="resetNumber('A')">Reset</button>
+  </div>
+
+  <!-- RELEASING (Mouse cursor visible, buttons visible) -->
+  <div class="panel">
+    <div class="service">RELEASING</div>
+    <h2>NOW SERVING</h2>
+    <div id="displayB" class="number">01</div>
+
+    <!-- Arrow buttons visible -->
+    <button class="btn back" onclick="changeNumber('B', -1)">Previous</button>
+    <button class="btn next" onclick="changeNumber('B', 1)">Next</button>
+
+    <!-- Reset button -->
+    <button class="btn reset" onclick="resetNumber('B')">Reset</button>
+  </div>
+</div>
+
+<button class="btn fullscreen-btn" onclick="toggleFullScreen()">Full Screen</button>
+<div class="bottom-contact">General Contact: 0917-123-4567 | Legal Division: 0966-086-0361</div>
+
+<script>
+let counters = { A: 1 };
+let lastSpoken = { A: null, B: null };
+
+// Releasing numbers 01–100
+let releasingNumbers = Array.from({length: 100}, (_, i) => String(i+1).padStart(2,"0"));
+let releasingIndex = 0;
+
+// Format number to 2 digits
+function formatNumber(n){ return String(n).padStart(2,"0"); }
+
+// Flash number briefly when updated
+function flashNumber(panelId){
+  const el = document.getElementById(panelId);
+  el.classList.add('flash');
+  setTimeout(()=> el.classList.remove('flash'), 300);
+}
+
+// Update display
+function updateDisplay(panel){
+  if(panel==='A'){
+    document.getElementById("displayA").textContent = formatNumber(counters.A);
+    flashNumber("displayA");
+    if(lastSpoken.A !== counters.A){
+      speakNumber('A', formatNumber(counters.A));
+      lastSpoken.A = counters.A;
+    }
+  } else {
+    let num = releasingNumbers[releasingIndex];
+    document.getElementById("displayB").textContent = num;
+    flashNumber("displayB");
+    if(lastSpoken.B !== num){
+      speakNumber('B', num);
+      lastSpoken.B = num;
+    }
+  }
+}
+
+// Change number with auto-reset at 100
+function changeNumber(panel, delta){
+  if(panel==='A'){
+    counters.A += delta;
+    if(counters.A > 100) counters.A = 1;   // auto-reset
+    if(counters.A < 1) counters.A = 100;   // loop back
+  } else {
+    releasingIndex += delta;
+    if(releasingIndex >= releasingNumbers.length) releasingIndex = 0; // auto-reset
+    if(releasingIndex < 0) releasingIndex = releasingNumbers.length -1; // loop back
+  }
+  updateDisplay(panel);
+}
+
+// Reset number manually
+function resetNumber(panel){
+  if(panel==='A') counters.A = 1;
+  else releasingIndex = 0;
+  updateDisplay(panel);
+}
+
+// Fullscreen
+function toggleFullScreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}
+
+// Clear male voice announcement
+function speakNumber(panel, number){
+  let panelName = panel==='A' ? 'DAR Clearance' : 'Releasing';
+  const msg = new SpeechSynthesisUtterance(panelName + ". Now serving number " + number);
+
+  const voices = speechSynthesis.getVoices();
+  if(!voices.length){ setTimeout(()=>speakNumber(panel, number), 500); return; }
+
+  // Select best clear male voice available
+  msg.voice = voices.find(v => v.name.toLowerCase().includes("google uk english male")) ||
+              voices.find(v => v.name.toLowerCase().includes("david")) ||
+              voices.find(v => v.name.toLowerCase().includes("male") || v.name.toLowerCase().includes("man")) ||
+              voices[0]; // fallback
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(msg);
+}
+
+// Keyboard / remote control support for separate panels
+document.addEventListener('keydown', function(event) {
+  switch(event.key){
+    // DAR CLEARANCE controls
+    case "ArrowRight": // Next DAR Clearance
+      changeNumber('A', 1);
+      break;
+    case "ArrowLeft":  // Previous DAR Clearance
+      changeNumber('A', -1);
+      break;
+
+    // RELEASING controls (Arrow UP = NEXT, Arrow DOWN = PREVIOUS)
+    case "ArrowUp":    // Next Releasing
+      changeNumber('B', 1);
+      break;
+    case "ArrowDown":  // Previous Releasing
+      changeNumber('B', -1);
+      break;
+  }
+});
+
+// Initialize
+updateDisplay('A');
+updateDisplay('B');
+
+// Ensure voices load
+speechSynthesis.onvoiceschanged = () => {
+  updateDisplay('A');
+  updateDisplay('B');
+};
+</script>
+
+</body>
+</html>
